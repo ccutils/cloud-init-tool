@@ -91,6 +91,17 @@ const TIMEZONE_DATA: Record<string, string[]> = {
   "Pacific": ["Auckland", "Chatham", "Easter", "Fiji", "Guadalcanal", "Honolulu", "Majuro", "Noumea", "Pago_Pago", "Port_Moresby", "Tahiti", "Tongatapu"]
 };
 
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 function App() {
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem('app-lang');
@@ -130,6 +141,9 @@ function App() {
   });
 
   const [loading, setLoading] = useState(false);
+
+  // Raw string states for inputs that need normalization (like DNS)
+  const [dnsRaw, setDnsRaw] = useState<Record<number, string>>({});
 
   const [selectedRegion, setSelectedRegion] = useState(() => {
     if (config.timezone && config.timezone.includes('/')) {
@@ -240,7 +254,7 @@ function App() {
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                   />
                   <button 
-                    onClick={() => setConfig({...config, instance_id: crypto.randomUUID()})}
+                    onClick={() => setConfig({...config, instance_id: generateUUID()})}
                     title={t('random_uuid')}
                     className="p-2 text-blue-600 hover:bg-blue-50 border border-slate-300 rounded-lg transition-colors flex items-center justify-center"
                   >
@@ -558,10 +572,13 @@ function App() {
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{t('dns_servers')}</label>
                         <input 
                           type="text" 
-                          value={iface.nameservers.join(', ')}
+                          value={dnsRaw[iIdx] ?? iface.nameservers.join(', ')}
                           onChange={e => {
+                            const val = e.target.value;
+                            setDnsRaw({...dnsRaw, [iIdx]: val});
+                            
                             const newIfaces = [...config.interfaces];
-                            newIfaces[iIdx].nameservers = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                            newIfaces[iIdx].nameservers = val.split(',').map(s => s.trim()).filter(s => s);
                             setConfig({...config, interfaces: newIfaces});
                           }}
                           placeholder="8.8.8.8, 1.1.1.1"
